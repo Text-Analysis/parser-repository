@@ -1,6 +1,7 @@
+import pprint
+
 import requests
 import os
-from typing import Dict
 from parser import ParserFile
 from dotenv import load_dotenv
 
@@ -23,36 +24,51 @@ class ParserRepo:
 
         root_dir = os.path.dirname(__file__)
         refactor_path = '/'.join(root_dir.split('/')[:-1])
-        self.list_paths = self.__craw_repository(os.path.join(refactor_path, repo))
 
-    def __craw_repository(self, repo_path: str, list_paths: list[Dict[str, str]] = None) -> list[Dict[str, str]]:
-        if list_paths is None:
-            list_paths = []
+        obj_default = {
+            "dir_name": repo,
+            "files": [],
+            "dirs": [],
+        }
+        self.obj_repository = self.__craw_repository(os.path.join(refactor_path, repo), obj_default)
+        self.obj_repository = self.__clear_repository_obj(self.obj_repository)
+        pprint.pprint(self.obj_repository)
 
-        for lists in os.listdir(repo_path):
-            path = os.path.join(repo_path, lists)
+    def __clear_repository_obj(self, obj):
+        if len(obj["dirs"]) == 0 and len(obj["files"]) == 0:
+            obj["parent"]["dirs"].remove(obj)
+            return self.__clear_repository_obj(obj["parent"])
+        for obj_dir in obj["dirs"]:
+            self.__clear_repository_obj(obj_dir)
+        return obj
+
+    def __craw_repository(self, repo_path: str, obj):
+
+        for name_path in os.listdir(repo_path):
+            path = os.path.join(repo_path, name_path)
             if os.path.isdir(path):
-                self.__craw_repository(path, list_paths)
+                obj_dir = {
+                    "dir_name": name_path,
+                    "files": [],
+                    "dirs": [],
+                    "parent": obj,
+                }
+                obj["dirs"].append(obj_dir)
+                self.__craw_repository(path, obj_dir)
             else:
                 file_name = os.path.basename(path)
                 suffix = os.path.splitext(file_name)[1]
                 if suffix == ".py":
-                    obj = {
+                    parser_file = ParserFile(path)
+                    content = parser_file.get_data()
+                    obj_file = {
                         'file_name': file_name,
                         'path': path,
+                        "parent": obj,
+                        "content": content,
                     }
-                    list_paths.append(obj)
-        return list_paths
+                    obj["files"].append(obj_file)
+        return obj
 
-    def get_data(self) -> list:
-        data = []
-        for obj_path in self.list_paths:
-            file_name = obj_path.get('file_name')
-            path = obj_path.get('path')
-            parser_file = ParserFile(path)
-            content = parser_file.get_data()
-            data.append({
-                'file_name': file_name,
-                "content": content
-            })
-        return data
+    def get_data(self):
+        return self.obj_repository

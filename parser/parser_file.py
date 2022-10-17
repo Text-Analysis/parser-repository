@@ -57,15 +57,9 @@ class ParserFile:
         documentation = self.__get_documentation(method_node)
 
         arguments = []
-        for index, argument in enumerate(method_node.args.args):
-            value = ""
-            defaults_len = len(method_node.args.defaults)
-            position = -defaults_len + index + 1
-            if defaults_len > position >= 0:
-                value = method_node.args.defaults[position].value
+        for argument in method_node.args.args:
             arg_obj = {
                 "name": argument.arg,
-                "default_value": value
             }
             arguments.append(arg_obj)
         return {
